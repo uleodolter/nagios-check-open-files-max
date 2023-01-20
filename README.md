@@ -1,0 +1,1 @@
+# nagios-check-open-files-max
