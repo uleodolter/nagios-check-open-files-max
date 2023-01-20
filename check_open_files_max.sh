@@ -1,9 +1,9 @@
 #!/bin/bash
 # 
-# Inspired by: https://github.com/wefixit-AT/nagios_check_open_files
-#
+# https://github.com/uleodolter/nagios-check-open-files-max
 # Author: Ulrich Leodolter
-# Mail: ulrich.leodolter at obvsg.at
+#
+# Inspired by: https://github.com/wefixit-AT/nagios_check_open_files
 
 SUDO=/bin/sudo
 LSOF=/sbin/lsof
@@ -35,29 +35,21 @@ PID=`ps -u $USER | tail -1 | awk '{print $1}'`
 checkExitStatus $? "No PID found"
 OPEN_F=`$SUDO cat /proc/$PID/limits | grep "open files" | awk '{print $5}'`
 
-PERCDONE_MAX=0
-FILES_MAX=0
-PID_MAX=0
+read FILES PID < <($SUDO $LSOF -u $USER | tail -n+2 | awk '{print $2}' | sort | uniq -c | sort -nr | head -n1)
 
-while read FILES PID; do
-    if [ "$FILES" -gt "$FILES_MAX" ]; then
-        PERCDONE_PRE=$(echo "scale=2;(($FILES/$OPEN_F) * 100)" |bc)
-        PERCDONE_MAX=`echo $PERCDONE_PRE | cut -d. -f1`
-        FILES_MAX=$FILES
-        PID_MAX=$PID
-    fi
-done < <($SUDO $LSOF -u $USER | tail -n+2 | awk '{print $2}' | sort | uniq -c)
+PERCDONE_PRE=$(echo "scale=2;(($FILES/$OPEN_F) * 100)" |bc)
+PERCDONE=`echo $PERCDONE_PRE | cut -d. -f1`
 
-if [ $PERCDONE_MAX -lt 84 ]; then
+if [ $PERCDONE -lt 84 ]; then
     ERROR_CODE=0
-    printf "FILES OK - $PERCDONE_MAX %% with $FILES_MAX files open pid=$PID_MAX|files=$FILES_MAX;;;\n"
+    printf "FILES OK - $PERCDONE %% with $FILES files open pid=$PID|files=$FILES;;;\n"
 else
-    if [ $PERCDONE_MAX -ge 85 ] && [ $PERCDONE_MAX -le 94 ]; then
+    if [ $PERCDONE -ge 85 ] && [ $PERCDONE -le 94 ]; then
         ERROR_CODE=1
-    	printf "FILES WARN - $PERCDONE_MAX %% with $FILES_MAX files open pid=$PID_MAX|files=$FILES_MAX;;;\n"
-    elif [ $PERCDONE_MAX -ge 95 ]; then
+    	printf "FILES WARN - $PERCDONE %% with $FILES files open pid=$PID|files=$FILES;;;\n"
+    elif [ $PERCDONE -ge 95 ]; then
         ERROR_CODE=2
-    	printf "FILES CRIT - $PERCDONE_MAX %% with $FILES_MAX files open pid=$PID_MAX|files=$FILES_MAX;;;\n"
+    	printf "FILES CRIT - $PERCDONE %% with $FILES files open pid=$PID|files=$FILES;;;\n"
   fi
 fi
 
